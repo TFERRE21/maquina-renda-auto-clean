@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const ROOT = path.resolve(".");
+const ROOT = process.cwd();
 const OUTPUT_DIR = path.join(ROOT, "output");
 const ROTEIRO_PATH = path.join(OUTPUT_DIR, "roteiro.txt");
 
@@ -21,11 +21,10 @@ const openai = new OpenAI({
 async function gerarImagens(tipo = "long") {
   try {
     console.log("🖼 Gerando imagens...");
-
-    console.log("📍 Procurando roteiro em:", ROTEIRO_PATH);
+    console.log("📂 Caminho do roteiro:", ROTEIRO_PATH);
 
     if (!fs.existsSync(ROTEIRO_PATH)) {
-      console.error("❌ roteiro.txt não encontrado.");
+      console.error("❌ roteiro.txt NÃO encontrado!");
       process.exit(1);
     }
 
@@ -38,15 +37,15 @@ async function gerarImagens(tipo = "long") {
 
       const response = await openai.images.generate({
         model: "gpt-image-1",
-        prompt: `Imagem sobre: ${roteiro.substring(0, 500)}`,
+        prompt: `Imagem profissional sobre investimentos baseada no texto: ${roteiro.substring(0, 600)}`,
         size: "1024x1024"
       });
 
-      const imgBase64 = response.data[0].b64_json;
-      const imgBuffer = Buffer.from(imgBase64, "base64");
+      const base64 = response.data[0].b64_json;
+      const buffer = Buffer.from(base64, "base64");
 
-      const imgPath = path.join(OUTPUT_DIR, `imagem${i}.png`);
-      fs.writeFileSync(imgPath, imgBuffer);
+      const imagePath = path.join(OUTPUT_DIR, `imagem${i}.png`);
+      fs.writeFileSync(imagePath, buffer);
     }
 
     console.log("✅ Imagens geradas com sucesso!");
