@@ -1,19 +1,22 @@
+// scripts/generateImages.js
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
-const ROOT = process.cwd();
-const OUTPUT_DIR = path.join(ROOT, "output");
-const IMAGES_DIR = path.join(OUTPUT_DIR, "images");
+const IMAGES_DIR = path.resolve("output/images");
+fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-if (!fs.existsSync(IMAGES_DIR)) {
-  fs.mkdirSync(IMAGES_DIR, { recursive: true });
+console.log("🖼 Gerando 6 imagens...");
+
+for (let i = 1; i <= 6; i++) {
+  const output = path.join(IMAGES_DIR, `img_${i}.png`);
+
+  execSync(
+    `ffmpeg -y -f lavfi -i color=c=black:s=720x1280 -frames:v 1 ${output}`,
+    { stdio: "inherit" }
+  );
+
+  console.log(`✅ Imagem ${i} criada`);
 }
 
-console.log("🖼 Gerando imagem única simples...");
-
-execSync(`
-ffmpeg -y -f lavfi -i color=c=black:s=720x1280 -frames:v 1 "${path.join(IMAGES_DIR, "img_1.png")}"
-`, { stdio: "inherit" });
-
-console.log("✅ Imagem criada!");
+console.log("🎉 Imagens geradas!");
