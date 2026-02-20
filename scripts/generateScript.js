@@ -1,7 +1,7 @@
-import dotenv from "dotenv";
 import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -14,53 +14,35 @@ async function gerarRoteiro(tipo = "long") {
     console.log("🧠 Gerando roteiro...");
 
     const outputDir = path.resolve("output");
+
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    const duracao =
-      tipo === "short"
-        ? "Versão curta (até 2 minutos), ritmo acelerado e impacto imediato."
-        : "Versão longa (4 a 5 minutos), aprofundada e altamente envolvente.";
+    const prompt =
+      tipo === "long"
+        ? "Crie um roteiro envolvente de 4 a 5 minutos sobre investimentos e renda passiva. Apenas texto corrido, sem dividir por narrador."
+        : "Crie um roteiro curto de até 2 minutos sobre investimentos. Apenas texto corrido.";
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        {
-          role: "system",
-          content:
-            "Você é especialista em roteiros virais e monetizáveis para YouTube no nicho de investimentos."
-        },
-        {
-          role: "user",
-          content: `
-Crie um roteiro sobre um tema atual e em tendência no nicho de investimentos, finanças ou renda extra.
-
-REGRAS:
-- Apenas texto corrido.
-- Sem títulos.
-- Sem tópicos.
-- Sem marcações.
-- Comece com um gancho forte nos primeiros 5 segundos.
-- Use gatilhos psicológicos.
-- Inclua CTA estratégico no final (inscreva-se, comente, etc).
-
-${duracao}
-`
-        }
+        { role: "user", content: prompt }
       ]
     });
 
-    const script = response.choices[0].message.content.trim();
+    const roteiro = response.choices[0].message.content;
 
-    const nomeArquivo =
-      tipo === "short" ? "script_short.txt" : "script_long.txt";
+    // 🔥 SALVAR SEMPRE COM ESSE NOME
+    const roteiroPath = path.resolve("output", "roteiro.txt");
 
-    fs.writeFileSync(path.join(outputDir, nomeArquivo), script);
+    fs.writeFileSync(roteiroPath, roteiro);
 
     console.log("✅ Roteiro gerado com sucesso!");
+
   } catch (error) {
     console.error("❌ Erro ao gerar roteiro:", error.message);
+    process.exit(1);
   }
 }
 
