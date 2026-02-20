@@ -45,9 +45,37 @@ const youtube = google.youtube({
   auth: oauth2Client
 });
 
+// 🔥 Define horário automático Brasil
+function getScheduledTime() {
+  const now = new Date();
+
+  const brasilOffset = -3; // UTC-3
+  const brasilNow = new Date(now.getTime() + brasilOffset * 60 * 60 * 1000);
+
+  const target = new Date(brasilNow);
+
+  if (type === "short") {
+    target.setHours(9, 0, 0, 0);
+  } else {
+    target.setHours(21, 0, 0, 0);
+  }
+
+  // se já passou hoje, agenda para amanhã
+  if (brasilNow > target) {
+    target.setDate(target.getDate() + 1);
+  }
+
+  // converte de volta para UTC
+  const utcTime = new Date(target.getTime() - brasilOffset * 60 * 60 * 1000);
+
+  return utcTime.toISOString();
+}
+
 async function upload() {
   try {
     console.log(`🚀 Enviando ${type.toUpperCase()} para o YouTube...`);
+
+    const scheduledTime = getScheduledTime();
 
     const response = await youtube.videos.insert({
       part: "snippet,status",
@@ -56,10 +84,11 @@ async function upload() {
           title: metadata.title,
           description: metadata.description,
           tags: metadata.tags,
-          categoryId: "27" // Educação (pode trocar se quiser)
+          categoryId: "27"
         },
         status: {
-          privacyStatus: "public",
+          privacyStatus: "private", // sobe como privado
+          publishAt: scheduledTime,
           selfDeclaredMadeForKids: false
         }
       },
@@ -70,27 +99,33 @@ async function upload() {
 
     const videoId = response.data.id;
 
-    console.log("✅ Vídeo enviado com sucesso!");
+    console.log("✅ Upload realizado com sucesso!");
+    console.log("🕒 Agendado para:", scheduledTime);
     console.log("🔗 https://youtube.com/watch?v=" + videoId);
 
-    // Thumbnail (apenas se existir)
     if (fs.existsSync(THUMB_PATH)) {
       console.log("🖼 Enviando thumbnail...");
 
       await youtube.thumbnails.set({
-        videoId: videoId,
+        videoId,
         media: {
           body: fs.createReadStream(THUMB_PATH)
         }
       });
 
       console.log("✅ Thumbnail enviada!");
-    } else {
-      console.log("⚠️ Thumbnail não encontrada, pulando...");
     }
 
   } catch (err) {
-    console.error("❌ Erro ao enviar para o YouTube:", err.response?.data || err.message);
+    const errorData = err.response?.data;
+
+    if (errorData?.error?.message?.includes("exceeded")) {
+      console.warn("⚠️ Limite diário do YouTube atingido.");
+      console.warn("⏳ Tentará novamente no próximo ciclo.");
+      return; // NÃO quebra o cron
+    }
+
+    console.error("❌ Erro ao enviar para o YouTube:", errorData || err.message);
     process.exit(1);
   }
 }
