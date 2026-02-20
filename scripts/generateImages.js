@@ -11,13 +11,16 @@ if (!fs.existsSync(path.join(OUTPUT_DIR, "script.txt"))) {
   process.exit(1);
 }
 
-if (!fs.existsSync(IMAGES_DIR)) {
-  fs.mkdirSync(IMAGES_DIR, { recursive: true });
+// 🔥 LIMPAR IMAGENS ANTIGAS
+if (fs.existsSync(IMAGES_DIR)) {
+  fs.rmSync(IMAGES_DIR, { recursive: true, force: true });
 }
+
+fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
 console.log("🖼 Gerando imagens reais...");
 
-// Criar 6 imagens coloridas válidas (PNG real)
+// Gerar PNG válido real
 for (let i = 1; i <= 6; i++) {
   const filePath = path.join(IMAGES_DIR, `img_${i}.png`);
 
