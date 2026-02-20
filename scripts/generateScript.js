@@ -28,7 +28,7 @@ async function main() {
   const duration = type === "short" ? "60 segundos" : "3 minutos";
 
   const prompt = `
-Crie um roteiro altamente envolvente para YouTube sobre ${niche}.
+Crie um roteiro envolvente para YouTube sobre ${niche}.
 Duração: ${duration}.
 Comece com um gancho forte nos primeiros 3 segundos.
 `;
@@ -44,9 +44,8 @@ Comece com um gancho forte nos primeiros 3 segundos.
 
   fs.writeFileSync("output/script.txt", response.choices[0].message.content);
 
-  console.log("✅ Roteiro criado com sucesso!");
+  console.log("✅ Script salvo com sucesso!");
 }
 
-// 🔥 ISSO GARANTE QUE O NODE ESPERE TERMINAR
 await main();
 process.exit(0);
