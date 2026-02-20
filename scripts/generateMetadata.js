@@ -1,61 +1,34 @@
-import dotenv from "dotenv";
-import OpenAI from "openai";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const ROOT = path.resolve(__dirname, "..");
+const OUTPUT_DIR = path.join(ROOT, "output");
 
-async function gerarMetadata(tipo = "long") {
-  try {
-    const scriptPath =
-      tipo === "short"
-        ? "./output/script_short.txt"
-        : "./output/script_long.txt";
+const type = process.argv[2] || "long";
 
-    const script = fs.readFileSync(scriptPath, "utf-8");
+// ⚠ agora usamos roteiro.txt
+const ROTEIRO_PATH = path.join(OUTPUT_DIR, "roteiro.txt");
+const METADATA_PATH = path.join(OUTPUT_DIR, `metadata_${type}.json`);
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "Você é especialista em SEO e monetização para YouTube no nicho financeiro."
-        },
-        {
-          role: "user",
-          content: `
-Com base no roteiro abaixo gere:
+console.log("📄 Gerando metadata...");
 
-1️⃣ Título altamente clicável
-2️⃣ Descrição otimizada para SEO
-3️⃣ 10 hashtags relevantes
-4️⃣ 3 menções estratégicas com @
-
-ROTEIRO:
-${script}
-`
-        }
-      ]
-    });
-
-    const metadata = response.choices[0].message.content;
-
-    const nomeArquivo =
-      tipo === "short"
-        ? "metadata_short.txt"
-        : "metadata_long.txt";
-
-    fs.writeFileSync(`./output/${nomeArquivo}`, metadata);
-
-    console.log("✅ Metadata gerada com sucesso!");
-  } catch (error) {
-    console.error("❌ Erro ao gerar metadata:", error.message);
-  }
+if (!fs.existsSync(ROTEIRO_PATH)) {
+  console.error("❌ roteiro.txt não encontrado.");
+  process.exit(1);
 }
 
-const tipo = process.argv[2] || "long";
-gerarMetadata(tipo);
+const roteiro = fs.readFileSync(ROTEIRO_PATH, "utf8");
+
+const metadata = {
+  title: `🔥 ${type.toUpperCase()} - ${new Date().toLocaleDateString()}`,
+  description: roteiro.substring(0, 4000),
+  tags: ["automação", "renda extra", "youtube", type]
+};
+
+fs.writeFileSync(METADATA_PATH, JSON.stringify(metadata, null, 2));
+
+console.log("✅ Metadata criada com sucesso:", METADATA_PATH);
