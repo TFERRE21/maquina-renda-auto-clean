@@ -1,36 +1,39 @@
-import { google } from "googleapis";
 import fs from "fs";
 import path from "path";
+import { google } from "googleapis";
+import dotenv from "dotenv";
+import { fileURLToPath } from "url";
 
-// ===============================
-// VALIDAÇÃO DE VARIÁVEIS
-// ===============================
+dotenv.config();
 
-function checkEnv() {
-  const required = [
-    "YOUTUBE_CLIENT_ID",
-    "YOUTUBE_CLIENT_SECRET",
-    "YOUTUBE_REFRESH_TOKEN"
-  ];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  const missing = required.filter(v => !process.env[v]);
+const ROOT = path.resolve(__dirname, "..");
+const OUTPUT_DIR = path.join(ROOT, "output");
 
-  if (missing.length > 0) {
-    console.error("❌ Variáveis faltando no Render:");
-    missing.forEach(v => console.error("➡️", v));
-    process.exit(1);
-  }
+const type = process.argv[2] || "long";
+
+const VIDEO_PATH = path.join(OUTPUT_DIR, `video_${type}.mp4`);
+const THUMB_PATH = path.join(OUTPUT_DIR, `thumb_${type}.jpg`);
+const METADATA_PATH = path.join(OUTPUT_DIR, `metadata_${type}.json`);
+
+if (!fs.existsSync(VIDEO_PATH)) {
+  console.error("❌ Vídeo não encontrado.");
+  process.exit(1);
 }
 
-checkEnv();
+if (!fs.existsSync(METADATA_PATH)) {
+  console.error("❌ Metadata não encontrada.");
+  process.exit(1);
+}
 
-// ===============================
-// CONFIGURAÇÃO YOUTUBE
-// ===============================
+const metadata = JSON.parse(fs.readFileSync(METADATA_PATH, "utf8"));
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.YOUTUBE_CLIENT_ID,
-  process.env.YOUTUBE_CLIENT_SECRET
+  process.env.YOUTUBE_CLIENT_SECRET,
+  process.env.YOUTUBE_REDIRECT_URI
 );
 
 oauth2Client.setCredentials({
@@ -42,89 +45,48 @@ const youtube = google.youtube({
   auth: oauth2Client
 });
 
-// ===============================
-// FUNÇÃO DE UPLOAD
-// ===============================
-
-async function uploadVideo(videoPath, isShort = false) {
+async function upload() {
   try {
-    console.log("📤 Iniciando upload...");
-
-    if (!fs.existsSync(videoPath)) {
-      console.log("⚠️ Vídeo não encontrado:", videoPath);
-      return;
-    }
-
-    const roteiroPath = path.resolve("output", "roteiro.txt");
-    const roteiro = fs.existsSync(roteiroPath)
-      ? fs.readFileSync(roteiroPath, "utf8")
-      : "Conteúdo sobre investimentos e renda.";
-
-    const tituloBase = roteiro.replace(/\n/g, " ").slice(0, 70);
-
-    const titulo = isShort
-      ? `${tituloBase} 💰 #shorts`
-      : `${tituloBase} | Estratégia de Investimento 2026 🚀`;
-
-    const descricao = `
-🚀 Conteúdo focado em investimentos e renda passiva.
-
-${roteiro.slice(0, 1500)}
-
-#investimentos #rendapassiva #educacaofinanceira #dinheiro #bitcoin
-`;
+    console.log("🚀 Enviando vídeo para o YouTube...");
 
     const response = await youtube.videos.insert({
       part: "snippet,status",
       requestBody: {
         snippet: {
-          title: titulo,
-          description: descricao,
-          tags: [
-            "investimentos",
-            "renda passiva",
-            "educação financeira",
-            "dinheiro",
-            "bitcoin"
-          ],
-          categoryId: "22"
+          title: metadata.title,
+          description: metadata.description,
+          tags: metadata.tags
         },
         status: {
           privacyStatus: "public"
         }
       },
       media: {
-        body: fs.createReadStream(videoPath)
+        body: fs.createReadStream(VIDEO_PATH)
       }
     });
 
-    console.log("✅ Upload concluído!");
-    console.log("🎯 ID do vídeo:", response.data.id);
+    const videoId = response.data.id;
+    console.log("✅ Vídeo enviado com sucesso!");
+    console.log("🔗 https://youtube.com/watch?v=" + videoId);
 
-  } catch (error) {
-    console.error("❌ ERRO REAL DO YOUTUBE:");
-    console.error(error.response?.data || error.message);
+    if (fs.existsSync(THUMB_PATH)) {
+      console.log("🖼 Enviando thumbnail...");
+
+      await youtube.thumbnails.set({
+        videoId: videoId,
+        media: {
+          body: fs.createReadStream(THUMB_PATH)
+        }
+      });
+
+      console.log("✅ Thumbnail enviada!");
+    }
+
+  } catch (err) {
+    console.error("❌ Erro ao enviar para o YouTube:", err.message);
     process.exit(1);
   }
 }
 
-// ===============================
-// EXECUÇÃO PRINCIPAL
-// ===============================
-
-async function main() {
-  const horizontal = path.resolve("output", "video-horizontal.mp4");
-  const vertical = path.resolve("output", "video-vertical.mp4");
-
-  if (fs.existsSync(horizontal)) {
-    await uploadVideo(horizontal, false);
-  }
-
-  if (fs.existsSync(vertical)) {
-    await uploadVideo(vertical, true);
-  }
-
-  console.log("🎉 Processo finalizado.");
-}
-
-main();
+upload();
