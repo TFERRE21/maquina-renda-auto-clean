@@ -2,20 +2,18 @@ import { google } from "googleapis";
 import fs from "fs";
 import path from "path";
 
+// ===============================
+// VALIDAÇÃO DE VARIÁVEIS
+// ===============================
+
 function checkEnv() {
-  const requiredVars = [
+  const required = [
     "YOUTUBE_CLIENT_ID",
     "YOUTUBE_CLIENT_SECRET",
     "YOUTUBE_REFRESH_TOKEN"
   ];
 
-  let missing = [];
-
-  requiredVars.forEach(v => {
-    if (!process.env[v]) {
-      missing.push(v);
-    }
-  });
+  const missing = required.filter(v => !process.env[v]);
 
   if (missing.length > 0) {
     console.error("❌ Variáveis faltando no Render:");
@@ -26,39 +24,54 @@ function checkEnv() {
 
 checkEnv();
 
+// ===============================
+// CONFIGURAÇÃO YOUTUBE
+// ===============================
+
+const oauth2Client = new google.auth.OAuth2(
+  process.env.YOUTUBE_CLIENT_ID,
+  process.env.YOUTUBE_CLIENT_SECRET
+);
+
+oauth2Client.setCredentials({
+  refresh_token: process.env.YOUTUBE_REFRESH_TOKEN
+});
+
+const youtube = google.youtube({
+  version: "v3",
+  auth: oauth2Client
+});
+
+// ===============================
+// FUNÇÃO DE UPLOAD
+// ===============================
+
 async function uploadVideo(videoPath, isShort = false) {
   try {
     console.log("📤 Iniciando upload...");
 
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.YOUTUBE_CLIENT_ID,
-      process.env.YOUTUBE_CLIENT_SECRET
-    );
+    if (!fs.existsSync(videoPath)) {
+      console.log("⚠️ Vídeo não encontrado:", videoPath);
+      return;
+    }
 
-    oauth2Client.setCredentials({
-      refresh_token: process.env.YOUTUBE_REFRESH_TOKEN
-    });
+    const roteiroPath = path.resolve("output", "roteiro.txt");
+    const roteiro = fs.existsSync(roteiroPath)
+      ? fs.readFileSync(roteiroPath, "utf8")
+      : "Conteúdo sobre investimentos e renda.";
 
-    const youtube = google.youtube({
-      version: "v3",
-      auth: oauth2Client
-    });
-
-    const scriptPath = path.resolve("output", "roteiro.txt");
-    const roteiro = fs.existsSync(scriptPath)
-      ? fs.readFileSync(scriptPath, "utf8")
-      : "Investimentos e renda passiva.";
+    const tituloBase = roteiro.replace(/\n/g, " ").slice(0, 70);
 
     const titulo = isShort
-      ? roteiro.slice(0, 60) + " 💰 #shorts"
-      : roteiro.slice(0, 70) + " | Estratégia Financeira 2026";
+      ? `${tituloBase} 💰 #shorts`
+      : `${tituloBase} | Estratégia de Investimento 2026 🚀`;
 
     const descricao = `
-🚀 Conteúdo focado em investimento e renda passiva.
+🚀 Conteúdo focado em investimentos e renda passiva.
 
 ${roteiro.slice(0, 1500)}
 
-#investimentos #rendapassiva #educacaofinanceira
+#investimentos #rendapassiva #educacaofinanceira #dinheiro #bitcoin
 `;
 
     const response = await youtube.videos.insert({
@@ -70,7 +83,9 @@ ${roteiro.slice(0, 1500)}
           tags: [
             "investimentos",
             "renda passiva",
-            "educação financeira"
+            "educação financeira",
+            "dinheiro",
+            "bitcoin"
           ],
           categoryId: "22"
         },
@@ -83,8 +98,8 @@ ${roteiro.slice(0, 1500)}
       }
     });
 
-    console.log("✅ Upload feito!");
-    console.log("🎯 ID:", response.data.id);
+    console.log("✅ Upload concluído!");
+    console.log("🎯 ID do vídeo:", response.data.id);
 
   } catch (error) {
     console.error("❌ ERRO REAL DO YOUTUBE:");
@@ -92,6 +107,10 @@ ${roteiro.slice(0, 1500)}
     process.exit(1);
   }
 }
+
+// ===============================
+// EXECUÇÃO PRINCIPAL
+// ===============================
 
 async function main() {
   const horizontal = path.resolve("output", "video-horizontal.mp4");
@@ -105,7 +124,7 @@ async function main() {
     await uploadVideo(vertical, true);
   }
 
-  console.log("🎉 Finalizado.");
+  console.log("🎉 Processo finalizado.");
 }
 
 main();
