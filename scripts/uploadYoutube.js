@@ -9,7 +9,7 @@ const {
 } = process.env;
 
 if (!YOUTUBE_CLIENT_ID || !YOUTUBE_CLIENT_SECRET || !YOUTUBE_REFRESH_TOKEN) {
-  console.error("❌ Variáveis do YouTube não configuradas no Render.");
+  console.error("❌ Variáveis YOUTUBE_* não configuradas no Render.");
   process.exit(1);
 }
 
@@ -19,8 +19,7 @@ async function uploadVideo(videoPath, isShort = false) {
 
     const oauth2Client = new google.auth.OAuth2(
       YOUTUBE_CLIENT_ID,
-      YOUTUBE_CLIENT_SECRET,
-      "urn:ietf:wg:oauth:2.0:oob"
+      YOUTUBE_CLIENT_SECRET
     );
 
     oauth2Client.setCredentials({
@@ -32,27 +31,29 @@ async function uploadVideo(videoPath, isShort = false) {
       auth: oauth2Client
     });
 
-    // 📖 Ler roteiro para gerar título base
+    // Lê roteiro
     const scriptPath = path.resolve("output", "roteiro.txt");
     const roteiro = fs.existsSync(scriptPath)
       ? fs.readFileSync(scriptPath, "utf8")
-      : "Dicas financeiras para investir melhor";
+      : "Aprenda a investir melhor em 2026.";
 
-    const baseTitulo = roteiro.split(".")[0].slice(0, 80);
+    const baseTitulo = roteiro
+      .replace(/\n/g, " ")
+      .slice(0, 70);
 
     const titulo = isShort
       ? `${baseTitulo} 💰 #shorts`
-      : `${baseTitulo} | Invista Melhor em 2026 🚀`;
+      : `${baseTitulo} | Estratégia de Investimento 2026 🚀`;
 
     const descricao = `
-🔥 Aprenda a investir melhor e aumentar sua renda!
+🔥 Conteúdo focado em investimentos e renda!
 
 ${roteiro.slice(0, 1500)}
 
-📈 Inscreva-se para mais conteúdos sobre:
+📈 Temas:
 #investimentos #rendapassiva #educacaofinanceira #dinheiro #bitcoin
 
-@seucanal
+Inscreva-se para mais conteúdos!
 `;
 
     const response = await youtube.videos.insert({
@@ -69,7 +70,7 @@ ${roteiro.slice(0, 1500)}
             "bitcoin",
             "empreendedorismo"
           ],
-          categoryId: "22" // Pessoas e blogs (financeiro funciona bem aqui)
+          categoryId: "22"
         },
         status: {
           privacyStatus: "public",
@@ -85,7 +86,8 @@ ${roteiro.slice(0, 1500)}
     console.log("🔗 ID do vídeo:", response.data.id);
 
   } catch (error) {
-    console.error("❌ Erro ao enviar vídeo:", error.message);
+    console.error("❌ Erro ao enviar vídeo:");
+    console.error(error.response?.data || error.message);
     process.exit(1);
   }
 }
@@ -101,6 +103,8 @@ async function main() {
   if (fs.existsSync(verticalPath)) {
     await uploadVideo(verticalPath, true);
   }
+
+  console.log("🎉 Upload finalizado.");
 }
 
 main();
