@@ -1,41 +1,46 @@
-import fs from 'fs';
-import path from 'path';
-import sharp from 'sharp';
-import { fileURLToPath } from 'url';
+import fs from "fs";
+import path from "path";
+import { execSync } from "child_process";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function generateThumbnail() {
-    try {
-        const outputFolder = path.join(__dirname, '../output');
-        const imagesFolder = path.join(__dirname, '../output/images');
-        const thumbnailPath = path.join(outputFolder, 'thumbnail.png');
+const ROOT = path.resolve(__dirname, "..");
+const OUTPUT_DIR = path.join(ROOT, "output");
+const IMAGES_DIR = path.join(OUTPUT_DIR, "images");
 
-        if (!fs.existsSync(imagesFolder)) {
-            console.log('❌ Pasta images não encontrada');
-            return;
-        }
+const type = process.argv[2] || "long";
+const THUMB_PATH = path.join(OUTPUT_DIR, `thumb_${type}.jpg`);
 
-        const images = fs.readdirSync(imagesFolder)
-            .filter(file => file.endsWith('.png'));
+console.log("🖼 Gerando thumbnail...");
 
-        if (images.length === 0) {
-            console.log('❌ Nenhuma imagem encontrada');
-            return;
-        }
-
-        const firstImage = path.join(imagesFolder, images[0]);
-
-        await sharp(firstImage)
-            .resize(1280, 720)
-            .toFile(thumbnailPath);
-
-        console.log('✅ Thumbnail criada com sucesso');
-
-    } catch (error) {
-        console.log('❌ Erro ao gerar thumbnail:', error.message);
-    }
+if (!fs.existsSync(IMAGES_DIR)) {
+  console.error("❌ Pasta images não encontrada.");
+  process.exit(1);
 }
 
-generateThumbnail();
+const images = fs
+  .readdirSync(IMAGES_DIR)
+  .filter((file) => file.endsWith(".png"))
+  .sort();
+
+if (images.length === 0) {
+  console.error("❌ Nenhuma imagem encontrada para thumbnail.");
+  process.exit(1);
+}
+
+// usa a primeira imagem como base
+const firstImage = path.join(IMAGES_DIR, images[0]);
+
+try {
+  execSync(
+    `ffmpeg -y -i "${firstImage}" -vf "scale=720:720" -q:v 2 "${THUMB_PATH}"`,
+    { stdio: "inherit" }
+  );
+
+  console.log("✅ Thumbnail criada com sucesso:", THUMB_PATH);
+} catch (err) {
+  console.error("❌ Erro ao gerar thumbnail:", err.message);
+  process.exit(1);
+}
