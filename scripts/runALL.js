@@ -1,43 +1,57 @@
 import { execSync } from "child_process";
 
-function executar(comando) {
+function runCommand(command) {
   try {
-    console.log(`▶ Executando: ${comando}`);
-    execSync(comando, { stdio: "inherit" });
+    console.log(`▶ Executando: ${command}`);
+    execSync(command, { stdio: "inherit" });
   } catch (error) {
     console.error("❌ ERRO NA AUTOMAÇÃO:");
-    console.error(error.message);
+    console.error(`Comando falhou: ${command}`);
     process.exit(1);
   }
 }
 
-async function main() {
-  console.log("🚀 INICIANDO AUTOMAÇÃO COMPLETA");
+async function run() {
+  try {
+    console.log("🚀 INICIANDO AUTOMAÇÃO COMPLETA");
+    console.log("====================================");
 
-  console.log("\n🎥 GERANDO VÍDEO LONGO (4-5 MIN)");
+    // ============================
+    // 🎥 VÍDEO LONGO (4-5 MIN)
+    // ============================
+    console.log("\n🎥 GERANDO VÍDEO LONGO (4-5 MIN)");
 
-  // 🔥 PRIMEIRO GERA ROTEIRO
-  executar("node scripts/generateScript.js long");
+    runCommand("node scripts/generateScript.js long");
+    runCommand("node scripts/generateMetadata.js long");
+    runCommand("node scripts/generateImages.js long");
+    runCommand("node scripts/generateAudio.js long");
+    runCommand("node scripts/generateVideo.js long");
+    runCommand("node scripts/generateThumbnail.js long");
+    runCommand("node scripts/uploadYoutube.js long");
 
-  // Depois metadata
-  executar("node scripts/generateMetadata.js long");
+    console.log("✅ VÍDEO LONGO FINALIZADO\n");
 
-  // Depois imagens
-  executar("node scripts/generateImages.js long");
+    // ============================
+    // 📱 SHORT (ATÉ 2 MIN)
+    // ============================
+    console.log("📱 GERANDO SHORT (ATÉ 2 MIN)");
 
-  // Depois áudio
-  executar("node scripts/generateAudio.js long");
+    runCommand("node scripts/generateScript.js short");
+    runCommand("node scripts/generateMetadata.js short");
+    runCommand("node scripts/generateImages.js short");
+    runCommand("node scripts/generateAudio.js short");
+    runCommand("node scripts/generateVideo.js short");
+    runCommand("node scripts/uploadYoutube.js short");
 
-  // Depois vídeo
-  executar("node scripts/generateVideo.js long");
+    console.log("✅ SHORT FINALIZADO\n");
 
-  // Thumbnail
-  executar("node scripts/generateThumbnail.js");
+    console.log("🎉 AUTOMAÇÃO COMPLETA COM SUCESSO!");
+    console.log("====================================");
 
-  // Upload
-  executar("node scripts/uploadYoutube.js");
-
-  console.log("\n✅ AUTOMAÇÃO FINALIZADA COM SUCESSO");
+  } catch (error) {
+    console.error("❌ ERRO GERAL NA AUTOMAÇÃO:", error.message);
+    process.exit(1);
+  }
 }
 
-main();
+run();
