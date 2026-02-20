@@ -1,6 +1,6 @@
+import dotenv from "dotenv";
 import OpenAI from "openai";
 import fs from "fs";
-import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -8,28 +8,54 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-const gerarMetadata = async () => {
-  const roteiro = fs.readFileSync("output/roteiro.txt", "utf-8");
+async function gerarMetadata(tipo = "long") {
+  try {
+    const scriptPath =
+      tipo === "short"
+        ? "./output/script_short.txt"
+        : "./output/script_long.txt";
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: "Você é especialista em viralização no YouTube."
-      },
-      {
-        role: "user",
-        content: `Crie título chamativo e descrição SEO para esse vídeo:\n${roteiro}`
-      }
-    ]
-  });
+    const script = fs.readFileSync(scriptPath, "utf-8");
 
-  const texto = response.choices[0].message.content;
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é especialista em SEO e monetização para YouTube no nicho financeiro."
+        },
+        {
+          role: "user",
+          content: `
+Com base no roteiro abaixo gere:
 
-  fs.writeFileSync("output/metadata.txt", texto);
+1️⃣ Título altamente clicável
+2️⃣ Descrição otimizada para SEO
+3️⃣ 10 hashtags relevantes
+4️⃣ 3 menções estratégicas com @
 
-  console.log("🧠 Metadata gerada com IA!");
-};
+ROTEIRO:
+${script}
+`
+        }
+      ]
+    });
 
-gerarMetadata();
+    const metadata = response.choices[0].message.content;
+
+    const nomeArquivo =
+      tipo === "short"
+        ? "metadata_short.txt"
+        : "metadata_long.txt";
+
+    fs.writeFileSync(`./output/${nomeArquivo}`, metadata);
+
+    console.log("✅ Metadata gerada com sucesso!");
+  } catch (error) {
+    console.error("❌ Erro ao gerar metadata:", error.message);
+  }
+}
+
+const tipo = process.argv[2] || "long";
+gerarMetadata(tipo);
