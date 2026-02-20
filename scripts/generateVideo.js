@@ -33,17 +33,25 @@ if (images.length === 0) {
   process.exit(1);
 }
 
-// usa primeira imagem como base visual
 const firstImage = path.join(IMAGES_DIR, images[0]);
 
-console.log("🎬 Gerando vídeo sincronizado com áudio...");
+console.log("🎬 Gerando vídeo MODO ULTRA LEVE 512MB...");
 
 try {
   execSync(
-    `ffmpeg -y -loop 1 -i "${firstImage}" -i "${AUDIO_PATH}" \
-    -vf "scale=720:1280" \
-    -c:v libx264 -preset veryfast -crf 28 \
-    -c:a aac -b:a 128k \
+    `ffmpeg -y \
+    -loop 1 -framerate 1 -i "${firstImage}" \
+    -i "${AUDIO_PATH}" \
+    -vf "scale=720:1280,format=yuv420p" \
+    -c:v libx264 \
+    -preset ultrafast \
+    -profile:v baseline \
+    -level 3.0 \
+    -pix_fmt yuv420p \
+    -threads 1 \
+    -g 50 \
+    -crf 32 \
+    -c:a aac -b:a 96k \
     -shortest \
     "${VIDEO_PATH}"`,
     { stdio: "inherit" }
