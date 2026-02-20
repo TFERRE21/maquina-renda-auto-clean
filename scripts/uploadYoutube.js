@@ -30,6 +30,7 @@ if (!fs.existsSync(METADATA_PATH)) {
 
 const metadata = JSON.parse(fs.readFileSync(METADATA_PATH, "utf8"));
 
+// 🔐 OAuth
 const oauth2Client = new google.auth.OAuth2(
   process.env.YOUTUBE_CLIENT_ID,
   process.env.YOUTUBE_CLIENT_SECRET,
@@ -45,7 +46,29 @@ const youtube = google.youtube({
   auth: oauth2Client
 });
 
-// 🔥 Define horário automático Brasil
+
+// 🔥 FUNÇÃO DE CONTROLE DE QUOTA
+async function checkQuota() {
+  try {
+    await youtube.channels.list({
+      part: "snippet",
+      mine: true
+    });
+    return true;
+  } catch (err) {
+    const message = err.response?.data?.error?.message || "";
+
+    if (message.toLowerCase().includes("quota")) {
+      console.warn("⚠️ Quota diária do YouTube atingida.");
+      return false;
+    }
+
+    return true;
+  }
+}
+
+
+// 🔥 AGENDAMENTO AUTOMÁTICO BRASIL
 function getScheduledTime() {
   const now = new Date();
 
@@ -60,20 +83,26 @@ function getScheduledTime() {
     target.setHours(21, 0, 0, 0);
   }
 
-  // se já passou hoje, agenda para amanhã
   if (brasilNow > target) {
     target.setDate(target.getDate() + 1);
   }
 
-  // converte de volta para UTC
   const utcTime = new Date(target.getTime() - brasilOffset * 60 * 60 * 1000);
 
   return utcTime.toISOString();
 }
 
+
+// 🚀 FUNÇÃO PRINCIPAL
 async function upload() {
   try {
     console.log(`🚀 Enviando ${type.toUpperCase()} para o YouTube...`);
+
+    const allowed = await checkQuota();
+    if (!allowed) {
+      console.log("⏳ Upload cancelado por limite de quota.");
+      return;
+    }
 
     const scheduledTime = getScheduledTime();
 
@@ -83,11 +112,11 @@ async function upload() {
         snippet: {
           title: metadata.title,
           description: metadata.description,
-          tags: metadata.tags,
+          tags: metadata.tags || [],
           categoryId: "27"
         },
         status: {
-          privacyStatus: "private", // sobe como privado
+          privacyStatus: "private",
           publishAt: scheduledTime,
           selfDeclaredMadeForKids: false
         }
@@ -103,6 +132,7 @@ async function upload() {
     console.log("🕒 Agendado para:", scheduledTime);
     console.log("🔗 https://youtube.com/watch?v=" + videoId);
 
+    // 🖼 Upload da thumbnail
     if (fs.existsSync(THUMB_PATH)) {
       console.log("🖼 Enviando thumbnail...");
 
@@ -117,15 +147,21 @@ async function upload() {
     }
 
   } catch (err) {
+
     const errorData = err.response?.data;
 
-    if (errorData?.error?.message?.includes("exceeded")) {
+    // 🔥 TRATAMENTO INTELIGENTE DE LIMITE DIÁRIO
+    if (
+      errorData?.error?.message?.toLowerCase().includes("exceeded") ||
+      errorData?.error?.message?.toLowerCase().includes("quota")
+    ) {
       console.warn("⚠️ Limite diário do YouTube atingido.");
       console.warn("⏳ Tentará novamente no próximo ciclo.");
-      return; // NÃO quebra o cron
+      return;
     }
 
-    console.error("❌ Erro ao enviar para o YouTube:", errorData || err.message);
+    console.error("❌ Erro ao enviar para o YouTube:");
+    console.error(errorData || err.message);
     process.exit(1);
   }
 }
