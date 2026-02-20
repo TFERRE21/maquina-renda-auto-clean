@@ -6,24 +6,35 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// sobe um nível (raiz do projeto)
 const ROOT = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT, "output");
+const IMAGES_DIR = path.join(OUTPUT_DIR, "images");
 
 const type = process.argv[2] || "long";
-
-const IMAGES_DIR = path.join(OUTPUT_DIR, "images");
-const AUDIO_PATH = path.join(OUTPUT_DIR, `${type}.mp3`);
 const VIDEO_PATH = path.join(OUTPUT_DIR, `video_${type}.mp4`);
 
 console.log("📁 ROOT:", ROOT);
 console.log("📁 OUTPUT_DIR:", OUTPUT_DIR);
 
-if (!fs.existsSync(AUDIO_PATH)) {
-  console.error("❌ Áudio não encontrado:", AUDIO_PATH);
+// ========================
+// 🔎 ENCONTRA QUALQUER MP3
+// ========================
+const audioFiles = fs
+  .readdirSync(OUTPUT_DIR)
+  .filter((file) => file.endsWith(".mp3"));
+
+if (audioFiles.length === 0) {
+  console.error("❌ Nenhum arquivo de áudio encontrado em output/");
   process.exit(1);
 }
 
+const AUDIO_PATH = path.join(OUTPUT_DIR, audioFiles[0]);
+
+console.log("🎧 Usando áudio:", AUDIO_PATH);
+
+// ========================
+// 🔎 VERIFICA IMAGENS
+// ========================
 if (!fs.existsSync(IMAGES_DIR)) {
   console.error("❌ Pasta de imagens não encontrada:", IMAGES_DIR);
   process.exit(1);
@@ -39,7 +50,9 @@ if (images.length === 0) {
   process.exit(1);
 }
 
-// cria lista temporária para ffmpeg
+// ========================
+// 🎬 CRIA LISTA FFmpeg
+// ========================
 const listFile = path.join(OUTPUT_DIR, "images.txt");
 const durationPerImage = type === "short" ? 3 : 5;
 
@@ -50,12 +63,14 @@ images.forEach((image) => {
   listContent += `duration ${durationPerImage}\n`;
 });
 
-// última imagem precisa repetir
 listContent += `file '${path.join(IMAGES_DIR, images[images.length - 1])}'\n`;
 
 fs.writeFileSync(listFile, listContent);
 
-console.log("🎬 Gerando vídeo com FFmpeg...");
+// ========================
+// 🎬 GERA VÍDEO
+// ========================
+console.log("🎬 Gerando vídeo...");
 
 try {
   execSync(
