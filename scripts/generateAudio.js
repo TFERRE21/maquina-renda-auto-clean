@@ -1,22 +1,32 @@
+// scripts/generateAudio.js
 import fs from "fs";
-import { execSync } from "child_process";
 import path from "path";
+import OpenAI from "openai";
 
-const ROOT = process.cwd();
-const OUTPUT_DIR = path.join(ROOT, "output");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
+const OUTPUT_DIR = path.resolve("output");
 const scriptPath = path.join(OUTPUT_DIR, "script.txt");
+const audioPath = path.join(OUTPUT_DIR, "audio.mp3");
 
 if (!fs.existsSync(scriptPath)) {
   console.error("❌ script.txt não encontrado.");
   process.exit(1);
 }
 
-console.log("🎙 Gerando áudio...");
+const text = fs.readFileSync(scriptPath, "utf-8");
 
-// Áudio leve silencioso como placeholder
-execSync(`
-ffmpeg -f lavfi -i anullsrc=r=24000:cl=mono -t 60 -q:a 9 -acodec mp3 ${OUTPUT_DIR}/audio.mp3 -y
-`, { stdio: "inherit" });
+console.log("🎙 Gerando áudio narrado...");
 
-console.log("✅ Áudio criado!");
+const speech = await openai.audio.speech.create({
+  model: "gpt-4o-mini-tts",
+  voice: "alloy",
+  input: text,
+});
+
+const buffer = Buffer.from(await speech.arrayBuffer());
+fs.writeFileSync(audioPath, buffer);
+
+console.log("✅ Áudio criado com sucesso!");
