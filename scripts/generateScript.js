@@ -2,10 +2,15 @@ import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
-const ROOT = process.cwd();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// sobe um nível (sai da pasta scripts)
+const ROOT = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT, "output");
 const ROTEIRO_PATH = path.join(OUTPUT_DIR, "roteiro.txt");
 
@@ -21,6 +26,7 @@ const openai = new OpenAI({
 async function gerarRoteiro(tipo = "long") {
   try {
     console.log("🧠 Gerando roteiro...");
+    console.log("📂 Salvando em:", ROTEIRO_PATH);
 
     if (!fs.existsSync(OUTPUT_DIR)) {
       fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -28,26 +34,19 @@ async function gerarRoteiro(tipo = "long") {
 
     const prompt =
       tipo === "short"
-        ? `Crie um roteiro curto (até 2 minutos) sobre investimentos.
-Texto corrido, direto e envolvente.`
-        : `Crie um roteiro de 4 a 5 minutos sobre investimentos,
-educação financeira ou renda passiva.
-Texto corrido, envolvente e com chamada para ação no final.`;
+        ? "Crie um roteiro curto (2 minutos) sobre investimentos. Texto corrido."
+        : "Crie um roteiro de 4 a 5 minutos sobre investimentos. Texto corrido.";
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "Especialista em finanças para YouTube." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.8
+      messages: [{ role: "user", content: prompt }]
     });
 
     const texto = response.choices[0].message.content.trim();
 
     fs.writeFileSync(ROTEIRO_PATH, texto, "utf8");
 
-    console.log("✅ Roteiro salvo em:", ROTEIRO_PATH);
+    console.log("✅ Roteiro salvo com sucesso!");
 
   } catch (err) {
     console.error("❌ Erro ao gerar roteiro:", err.message);
