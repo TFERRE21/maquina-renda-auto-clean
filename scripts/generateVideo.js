@@ -14,9 +14,7 @@ const type = process.argv[2] || "short";
 
 const AUDIO_PATH = path.join(OUTPUT_DIR, "audio.mp3");
 const VIDEO_PATH = path.join(OUTPUT_DIR, `video_${type}.mp4`);
-
-console.log("📁 ROOT:", ROOT);
-console.log("📁 OUTPUT_DIR:", OUTPUT_DIR);
+const IMAGES_TXT = path.join(OUTPUT_DIR, "images.txt");
 
 if (!fs.existsSync(AUDIO_PATH)) {
   console.error("❌ Áudio não encontrado.");
@@ -33,14 +31,26 @@ if (images.length === 0) {
   process.exit(1);
 }
 
-const firstImage = path.join(IMAGES_DIR, images[0]);
+// 🔥 cada imagem fica 10 segundos
+const imageDuration = 10;
 
-console.log("🎬 Gerando vídeo MODO ULTRA LEVE 512MB...");
+let concatFile = "";
+images.forEach((img) => {
+  concatFile += `file '${path.join(IMAGES_DIR, img)}'\n`;
+  concatFile += `duration ${imageDuration}\n`;
+});
+
+// repete última imagem
+concatFile += `file '${path.join(IMAGES_DIR, images[images.length - 1])}'\n`;
+
+fs.writeFileSync(IMAGES_TXT, concatFile);
+
+console.log("🎬 Gerando vídeo com múltiplas imagens...");
 
 try {
   execSync(
     `ffmpeg -y \
-    -loop 1 -framerate 1 -i "${firstImage}" \
+    -f concat -safe 0 -i "${IMAGES_TXT}" \
     -i "${AUDIO_PATH}" \
     -vf "scale=720:1280,format=yuv420p" \
     -c:v libx264 \
@@ -49,7 +59,6 @@ try {
     -level 3.0 \
     -pix_fmt yuv420p \
     -threads 1 \
-    -g 50 \
     -crf 32 \
     -c:a aac -b:a 96k \
     -shortest \
@@ -57,7 +66,7 @@ try {
     { stdio: "inherit" }
   );
 
-  console.log("✅ Vídeo gerado com sucesso:", VIDEO_PATH);
+  console.log("✅ Vídeo gerado:", VIDEO_PATH);
 
 } catch (err) {
   console.error("❌ Erro ao gerar vídeo:", err.message);
