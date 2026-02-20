@@ -1,6 +1,6 @@
+import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
-import OpenAI from "openai";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 
@@ -9,57 +9,62 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// sobe um nível
 const ROOT = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT, "output");
+const IMAGES_DIR = path.join(OUTPUT_DIR, "images");
 const ROTEIRO_PATH = path.join(OUTPUT_DIR, "roteiro.txt");
 
-if (!process.env.OPENAI_API_KEY) {
-  console.error("❌ OPENAI_API_KEY não configurada.");
+const type = process.argv[2] || "long";
+
+console.log("📁 ROOT:", ROOT);
+console.log("📁 OUTPUT_DIR:", OUTPUT_DIR);
+
+if (!fs.existsSync(ROTEIRO_PATH)) {
+  console.error("❌ roteiro.txt não encontrado.");
   process.exit(1);
 }
+
+// cria pasta images se não existir
+if (!fs.existsSync(IMAGES_DIR)) {
+  fs.mkdirSync(IMAGES_DIR, { recursive: true });
+  console.log("📁 Pasta images criada.");
+}
+
+// limpa imagens antigas
+fs.readdirSync(IMAGES_DIR).forEach(file => {
+  fs.unlinkSync(path.join(IMAGES_DIR, file));
+});
+
+const roteiro = fs.readFileSync(ROTEIRO_PATH, "utf8");
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-async function gerarImagens(tipo = "long") {
-  try {
-    console.log("🖼 Gerando imagens...");
-    console.log("📂 Lendo roteiro em:", ROTEIRO_PATH);
+async function gerarImagens() {
+  console.log("🖼 Gerando imagens...");
 
-    if (!fs.existsSync(ROTEIRO_PATH)) {
-      console.error("❌ roteiro.txt NÃO encontrado!");
-      process.exit(1);
-    }
+  for (let i = 1; i <= 6; i++) {
+    console.log(`🎨 Criando imagem ${i}...`);
 
-    const roteiro = fs.readFileSync(ROTEIRO_PATH, "utf8");
+    const prompt = `Crie uma imagem realista sobre investimentos financeiros relacionada ao seguinte roteiro:\n\n${roteiro}\n\nEstilo moderno, profissional, YouTube.`;
 
-    const quantidade = tipo === "short" ? 4 : 6;
+    const response = await openai.images.generate({
+      model: "gpt-image-1",
+      prompt: prompt,
+      size: "1024x1024"
+    });
 
-    for (let i = 1; i <= quantidade; i++) {
-      console.log(`🎨 Criando imagem ${i}...`);
+    const imageBase64 = response.data[0].b64_json;
+    const imageBuffer = Buffer.from(imageBase64, "base64");
 
-      const response = await openai.images.generate({
-        model: "gpt-image-1",
-        prompt: `Imagem sobre investimentos baseada no texto: ${roteiro.substring(0, 500)}`,
-        size: "1024x1024"
-      });
+    const imagePath = path.join(IMAGES_DIR, `img_${i}.png`);
+    fs.writeFileSync(imagePath, imageBuffer);
 
-      const base64 = response.data[0].b64_json;
-      const buffer = Buffer.from(base64, "base64");
-
-      const imgPath = path.join(OUTPUT_DIR, `imagem${i}.png`);
-      fs.writeFileSync(imgPath, buffer);
-    }
-
-    console.log("✅ Imagens geradas com sucesso!");
-
-  } catch (err) {
-    console.error("❌ Erro ao gerar imagens:", err.message);
-    process.exit(1);
+    console.log(`✅ Imagem ${i} salva em ${imagePath}`);
   }
+
+  console.log("🎉 Imagens geradas com sucesso!");
 }
 
-const tipo = process.argv[2] || "long";
-gerarImagens(tipo);
+gerarImagens();
