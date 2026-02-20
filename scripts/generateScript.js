@@ -1,61 +1,60 @@
-import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
+import googleTrends from "google-trends-api";
+import OpenAI from "openai";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 
 dotenv.config();
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ROOT = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT, "output");
-const ROTEIRO_PATH = path.join(OUTPUT_DIR, "roteiro.txt");
+const usedPath = path.join(OUTPUT_DIR, "usedThemes.json");
 
-if (!fs.existsSync(OUTPUT_DIR)) {
-  fs.mkdirSync(OUTPUT_DIR);
+const type = process.argv[2] || "long";
+
+let used = [];
+if (fs.existsSync(usedPath)) {
+  used = JSON.parse(fs.readFileSync(usedPath));
 }
 
-const type = process.argv[2] || "short";
+console.log("📈 Buscando tendência Brasil...");
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const trends = await googleTrends.dailyTrends({ geo: "BR" });
+const parsed = JSON.parse(trends);
+const topic =
+  parsed.default.trendingSearchesDays[0].trendingSearches[0].title.query;
 
-async function gerarRoteiro() {
+if (used.includes(topic)) {
+  console.log("Tema já usado. Abortando.");
+  process.exit(1);
+}
 
-  console.log("🔥 Gerando roteiro tendência REAL...");
+used.push(topic);
+fs.writeFileSync(usedPath, JSON.stringify(used));
 
-  const tempo = type === "short" ? "2 minutos (~300 palavras)" : "5 minutos (~750 palavras)";
+const durationText =
+  type === "short"
+    ? "Crie um roteiro para 2 minutos exatos."
+    : "Crie um roteiro para 4 minutos.";
 
-  const prompt = `
-Crie um roteiro para YouTube Shorts no nicho de finanças e renda extra.
-
-Regras obrigatórias:
-- Tema deve ser tendência em 2026
-- Foco em dinheiro, renda extra, investimentos ou tecnologia financeira
-- Duração aproximada: ${tempo}
-- NÃO use palavras como "Narrador", "Cena", "Parte"
-- Texto contínuo pronto para narração
-- Comece com gancho extremamente forte
-- Final com CTA chamando para seguir o canal
-
-Escreva no mínimo 280 palavras.
+const prompt = `
+Crie um roteiro envolvente sobre: ${topic}.
+${durationText}
 `;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.9,
-  });
+const response = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: prompt }]
+});
 
-  const roteiro = response.choices[0].message.content.trim();
+const script = response.choices[0].message.content;
 
-  fs.writeFileSync(ROTEIRO_PATH, roteiro);
+fs.writeFileSync(path.join(OUTPUT_DIR, "script.txt"), script);
 
-  console.log("✅ Roteiro salvo!");
-  console.log("📏 Tamanho do roteiro:", roteiro.split(" ").length, "palavras");
-}
-
-gerarRoteiro();
+console.log("✅ Roteiro criado:", topic);
