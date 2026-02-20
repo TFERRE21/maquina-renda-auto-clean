@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// sobe para raiz do projeto
 const ROOT = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT, "output");
 const IMAGES_DIR = path.join(OUTPUT_DIR, "images");
@@ -17,7 +18,7 @@ console.log("📁 ROOT:", ROOT);
 console.log("📁 OUTPUT_DIR:", OUTPUT_DIR);
 
 // ========================
-// 🔎 ENCONTRA QUALQUER MP3
+// 🔎 ENCONTRA ÁUDIO
 // ========================
 const audioFiles = fs
   .readdirSync(OUTPUT_DIR)
@@ -29,7 +30,6 @@ if (audioFiles.length === 0) {
 }
 
 const AUDIO_PATH = path.join(OUTPUT_DIR, audioFiles[0]);
-
 console.log("🎧 Usando áudio:", AUDIO_PATH);
 
 // ========================
@@ -67,14 +67,14 @@ listContent += `file '${path.join(IMAGES_DIR, images[images.length - 1])}'\n`;
 
 fs.writeFileSync(listFile, listContent);
 
-// ========================
-// 🎬 GERA VÍDEO
-// ========================
-console.log("🎬 Gerando vídeo...");
+console.log("🎬 Gerando vídeo LEVE para Render...");
 
 try {
   execSync(
-    `ffmpeg -y -f concat -safe 0 -i "${listFile}" -i "${AUDIO_PATH}" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest "${VIDEO_PATH}"`,
+    `ffmpeg -y -f concat -safe 0 -i "${listFile}" -i "${AUDIO_PATH}" \
+    -vf "scale=720:720" \
+    -c:v libx264 -preset ultrafast -crf 32 -pix_fmt yuv420p \
+    -c:a aac -b:a 96k -shortest "${VIDEO_PATH}"`,
     { stdio: "inherit" }
   );
 
