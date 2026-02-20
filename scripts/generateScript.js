@@ -10,7 +10,6 @@ const openai = new OpenAI({
 
 const type = process.argv[2] || "short";
 
-// Nichos internos (não precisa arquivo externo)
 const niches = [
   "Inteligência Artificial",
   "Curiosidades do Mundo",
@@ -32,7 +31,6 @@ const prompt = `
 Crie um roteiro altamente envolvente para YouTube sobre ${niche}.
 Duração: ${duration}.
 Comece com um gancho forte nos primeiros 3 segundos.
-Não use marcações técnicas.
 `;
 
 async function run() {
@@ -45,7 +43,8 @@ async function run() {
     fs.mkdirSync("output");
   }
 
-  fs.writeFileSync("output/script.txt", response.choices[0].message.content);
+  // 🔥 SALVANDO COM NOME ORIGINAL QUE O SISTEMA USA
+  fs.writeFileSync("output/roteiro.txt", response.choices[0].message.content);
 
   console.log("✅ Roteiro criado com sucesso!");
 }
