@@ -1,51 +1,28 @@
+// scripts/generateScript.js
 import fs from "fs";
-import OpenAI from "openai";
-import dotenv from "dotenv";
+import path from "path";
 
-dotenv.config();
+const OUTPUT_DIR = path.resolve("output");
+fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const niche = "Tecnologia";
 
-const type = process.argv[2] || "short";
+const script = `
+Você sabia que a tecnologia está transformando o mundo de forma acelerada?
 
-const niches = [
-  "Inteligência Artificial",
-  "Curiosidades do Mundo",
-  "Tecnologia",
-  "Criptomoedas",
-  "Notícias do Brasil",
-  "Histórias reais",
-  "Investimentos",
-  "Fatos surpreendentes"
-];
+Nos últimos anos, a inteligência artificial, a computação em nuvem e a automação mudaram completamente a forma como trabalhamos e nos comunicamos.
 
-async function main() {
-  const niche = niches[Math.floor(Math.random() * niches.length)];
-  console.log("🎯 Nicho escolhido:", niche);
+Hoje, empresas utilizam algoritmos inteligentes para prever comportamentos, analisar dados e melhorar decisões estratégicas.
 
-  const duration = type === "short" ? "60 segundos" : "3 minutos";
+Além disso, dispositivos móveis estão mais poderosos do que computadores de décadas atrás.
 
-  const prompt = `
-Crie um roteiro envolvente para YouTube sobre ${niche}.
-Duração: ${duration}.
-Comece com um gancho forte nos primeiros 3 segundos.
+A internet das coisas conecta casas, carros e até cidades inteiras.
+
+O futuro aponta para mais integração entre humanos e máquinas.
+
+A pergunta é: você está preparado para essa revolução tecnológica?
 `;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }]
-  });
+fs.writeFileSync(path.join(OUTPUT_DIR, "script.txt"), script.trim());
 
-  if (!fs.existsSync("output")) {
-    fs.mkdirSync("output");
-  }
-
-  fs.writeFileSync("output/script.txt", response.choices[0].message.content);
-
-  console.log("✅ Script salvo com sucesso!");
-}
-
-await main();
-process.exit(0);
+console.log("✅ Script salvo com sucesso!");
