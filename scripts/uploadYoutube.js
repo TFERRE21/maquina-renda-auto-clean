@@ -19,12 +19,12 @@ const THUMB_PATH = path.join(OUTPUT_DIR, `thumb_${type}.jpg`);
 const METADATA_PATH = path.join(OUTPUT_DIR, `metadata_${type}.json`);
 
 if (!fs.existsSync(VIDEO_PATH)) {
-  console.error("❌ Vídeo não encontrado.");
+  console.error("❌ Vídeo não encontrado:", VIDEO_PATH);
   process.exit(1);
 }
 
 if (!fs.existsSync(METADATA_PATH)) {
-  console.error("❌ Metadata não encontrada.");
+  console.error("❌ Metadata não encontrada:", METADATA_PATH);
   process.exit(1);
 }
 
@@ -47,7 +47,7 @@ const youtube = google.youtube({
 
 async function upload() {
   try {
-    console.log("🚀 Enviando vídeo para o YouTube...");
+    console.log(`🚀 Enviando ${type.toUpperCase()} para o YouTube...`);
 
     const response = await youtube.videos.insert({
       part: "snippet,status",
@@ -55,10 +55,12 @@ async function upload() {
         snippet: {
           title: metadata.title,
           description: metadata.description,
-          tags: metadata.tags
+          tags: metadata.tags,
+          categoryId: "27" // Educação (pode trocar se quiser)
         },
         status: {
-          privacyStatus: "public"
+          privacyStatus: "public",
+          selfDeclaredMadeForKids: false
         }
       },
       media: {
@@ -67,9 +69,11 @@ async function upload() {
     });
 
     const videoId = response.data.id;
+
     console.log("✅ Vídeo enviado com sucesso!");
     console.log("🔗 https://youtube.com/watch?v=" + videoId);
 
+    // Thumbnail (apenas se existir)
     if (fs.existsSync(THUMB_PATH)) {
       console.log("🖼 Enviando thumbnail...");
 
@@ -81,10 +85,12 @@ async function upload() {
       });
 
       console.log("✅ Thumbnail enviada!");
+    } else {
+      console.log("⚠️ Thumbnail não encontrada, pulando...");
     }
 
   } catch (err) {
-    console.error("❌ Erro ao enviar para o YouTube:", err.message);
+    console.error("❌ Erro ao enviar para o YouTube:", err.response?.data || err.message);
     process.exit(1);
   }
 }
