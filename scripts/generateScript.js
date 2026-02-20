@@ -1,28 +1,38 @@
 // scripts/generateScript.js
 import fs from "fs";
 import path from "path";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const OUTPUT_DIR = path.resolve("output");
 fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-const niche = "Tecnologia";
+console.log("🧠 Gerando roteiro mínimo 2 minutos...");
 
-const script = `
-Você sabia que a tecnologia está transformando o mundo de forma acelerada?
+const response = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [
+    {
+      role: "system",
+      content: "Crie roteiros narrados para YouTube Shorts vertical."
+    },
+    {
+      role: "user",
+      content: `
+Crie um roteiro sobre Tecnologia com no mínimo 900 palavras.
+O texto deve durar pelo menos 2 minutos narrado.
+Sem marcações, sem tópicos, apenas texto contínuo.
+`
+    }
+  ],
+  temperature: 0.7
+});
 
-Nos últimos anos, a inteligência artificial, a computação em nuvem e a automação mudaram completamente a forma como trabalhamos e nos comunicamos.
+const script = response.choices[0].message.content;
 
-Hoje, empresas utilizam algoritmos inteligentes para prever comportamentos, analisar dados e melhorar decisões estratégicas.
+fs.writeFileSync(path.join(OUTPUT_DIR, "script.txt"), script);
 
-Além disso, dispositivos móveis estão mais poderosos do que computadores de décadas atrás.
-
-A internet das coisas conecta casas, carros e até cidades inteiras.
-
-O futuro aponta para mais integração entre humanos e máquinas.
-
-A pergunta é: você está preparado para essa revolução tecnológica?
-`;
-
-fs.writeFileSync(path.join(OUTPUT_DIR, "script.txt"), script.trim());
-
-console.log("✅ Script salvo com sucesso!");
+console.log("✅ Roteiro 2 minutos salvo!");
