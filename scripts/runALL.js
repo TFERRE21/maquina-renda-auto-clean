@@ -1,33 +1,44 @@
-import 'dotenv/config'
-import { execSync } from "child_process"
+import { execSync } from "child_process";
 
-function runStep(command) {
-  console.log(`\n▶ Executando: ${command}`)
-  execSync(command, { stdio: "inherit" })
+function run(command) {
+  console.log(`\n▶ Executando: ${command}`);
+  execSync(command, { stdio: "inherit" });
 }
 
 async function runAll() {
   try {
-    console.log("\n🚀 INICIANDO AUTOMAÇÃO\n")
+    console.log("🚀 INICIANDO AUTOMAÇÃO COMPLETA\n");
 
-    // 🔹 Geração de conteúdo
-    runStep("node scripts/generateScript.js")
-    runStep("node scripts/generateImages.js")
-    runStep("node scripts/generateAudio.js")
+    // =========================
+    // 🎬 VÍDEO LONGO
+    // =========================
+    console.log("\n🎥 GERANDO VÍDEO LONGO (4-5 MIN)");
 
-    // 🔹 Geração de vídeos
-    runStep("node scripts/generateVideo.js")
-    runStep("node scripts/generateThumbnail.js")
+    run("node scripts/generateScript.js long");
+    run("node scripts/generateMetadata.js long");
+    run("node scripts/generateImages.js long");
+    run("node scripts/generateAudio.js long");
+    run("node scripts/generateVideo.js long");
+    run("node scripts/uploadYoutube.js long");
 
-    // 🔹 Upload
-    runStep("node scripts/uploadYoutube.js")
+    // =========================
+    // 📱 SHORT
+    // =========================
+    console.log("\n📱 GERANDO SHORT (2 MIN)");
 
-    console.log("\n🎉 AUTOMAÇÃO COMPLETA COM SUCESSO!\n")
+    run("node scripts/generateScript.js short");
+    run("node scripts/generateMetadata.js short");
+    run("node scripts/generateImages.js short");
+    run("node scripts/generateAudio.js short");
+    run("node scripts/generateVideo.js short");
+    run("node scripts/uploadYoutube.js short");
+
+    console.log("\n🎉 AUTOMAÇÃO FINALIZADA COM SUCESSO!");
   } catch (error) {
-    console.error("\n❌ ERRO DETECTADO NA AUTOMAÇÃO:")
-    console.error(error.message)
-    process.exit(1)
+    console.error("\n❌ ERRO NA AUTOMAÇÃO:");
+    console.error(error.message);
+    process.exit(1);
   }
 }
 
-runAll()
+runAll();
