@@ -4,26 +4,50 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 const type = process.argv[2] || "short";
 
-const niches = JSON.parse(fs.readFileSync("niches.json")).niches;
+// Nichos internos (não precisa arquivo externo)
+const niches = [
+  "Inteligência Artificial",
+  "Curiosidades do Mundo",
+  "Tecnologia",
+  "Criptomoedas",
+  "Notícias do Brasil",
+  "Histórias reais",
+  "Investimentos",
+  "Fatos surpreendentes"
+];
+
 const niche = niches[Math.floor(Math.random() * niches.length)];
 
 console.log("🎯 Nicho escolhido:", niche);
 
+const duration = type === "short" ? "60 segundos" : "3 minutos";
+
 const prompt = `
-Crie um roteiro viral para YouTube Shorts (60 segundos)
-sobre ${niche}.
-Comece com um gancho forte.
+Crie um roteiro altamente envolvente para YouTube sobre ${niche}.
+Duração: ${duration}.
+Comece com um gancho forte nos primeiros 3 segundos.
+Não use marcações técnicas.
 `;
 
-const response = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
-  messages: [{ role: "user", content: prompt }]
-});
+async function run() {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }]
+  });
 
-fs.writeFileSync("output/script.txt", response.choices[0].message.content);
+  if (!fs.existsSync("output")) {
+    fs.mkdirSync("output");
+  }
 
-console.log("✅ Script criado para nicho:", niche);
+  fs.writeFileSync("output/script.txt", response.choices[0].message.content);
+
+  console.log("✅ Roteiro criado com sucesso!");
+}
+
+run();
