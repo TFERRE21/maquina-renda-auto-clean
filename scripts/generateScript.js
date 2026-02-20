@@ -21,19 +21,18 @@ const niches = [
   "Fatos surpreendentes"
 ];
 
-const niche = niches[Math.floor(Math.random() * niches.length)];
+async function main() {
+  const niche = niches[Math.floor(Math.random() * niches.length)];
+  console.log("🎯 Nicho escolhido:", niche);
 
-console.log("🎯 Nicho escolhido:", niche);
+  const duration = type === "short" ? "60 segundos" : "3 minutos";
 
-const duration = type === "short" ? "60 segundos" : "3 minutos";
-
-const prompt = `
+  const prompt = `
 Crie um roteiro altamente envolvente para YouTube sobre ${niche}.
 Duração: ${duration}.
 Comece com um gancho forte nos primeiros 3 segundos.
 `;
 
-async function run() {
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [{ role: "user", content: prompt }]
@@ -43,10 +42,11 @@ async function run() {
     fs.mkdirSync("output");
   }
 
-  // 🔥 SALVANDO COM NOME ORIGINAL QUE O SISTEMA USA
-  fs.writeFileSync("output/roteiro.txt", response.choices[0].message.content);
+  fs.writeFileSync("output/script.txt", response.choices[0].message.content);
 
   console.log("✅ Roteiro criado com sucesso!");
 }
 
-run();
+// 🔥 ISSO GARANTE QUE O NODE ESPERE TERMINAR
+await main();
+process.exit(0);
