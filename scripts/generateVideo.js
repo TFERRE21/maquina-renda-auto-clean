@@ -6,37 +6,26 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// sobe para raiz do projeto
 const ROOT = path.resolve(__dirname, "..");
 const OUTPUT_DIR = path.join(ROOT, "output");
 const IMAGES_DIR = path.join(OUTPUT_DIR, "images");
 
-const type = process.argv[2] || "long";
+const type = process.argv[2] || "short";
+
+const AUDIO_PATH = path.join(OUTPUT_DIR, "audio.mp3");
 const VIDEO_PATH = path.join(OUTPUT_DIR, `video_${type}.mp4`);
+const imagesListPath = path.join(OUTPUT_DIR, "images.txt");
 
 console.log("📁 ROOT:", ROOT);
 console.log("📁 OUTPUT_DIR:", OUTPUT_DIR);
 
-// ========================
-// 🔎 ENCONTRA ÁUDIO
-// ========================
-const audioFiles = fs
-  .readdirSync(OUTPUT_DIR)
-  .filter((file) => file.endsWith(".mp3"));
-
-if (audioFiles.length === 0) {
-  console.error("❌ Nenhum arquivo de áudio encontrado em output/");
+if (!fs.existsSync(AUDIO_PATH)) {
+  console.error("❌ Áudio não encontrado.");
   process.exit(1);
 }
 
-const AUDIO_PATH = path.join(OUTPUT_DIR, audioFiles[0]);
-console.log("🎧 Usando áudio:", AUDIO_PATH);
-
-// ========================
-// 🔎 VERIFICA IMAGENS
-// ========================
 if (!fs.existsSync(IMAGES_DIR)) {
-  console.error("❌ Pasta de imagens não encontrada:", IMAGES_DIR);
+  console.error("❌ Pasta images não encontrada.");
   process.exit(1);
 }
 
@@ -50,36 +39,42 @@ if (images.length === 0) {
   process.exit(1);
 }
 
-// ========================
-// 🎬 CRIA LISTA FFmpeg
-// ========================
-const listFile = path.join(OUTPUT_DIR, "images.txt");
-const durationPerImage = type === "short" ? 3 : 5;
+// Criar arquivo images.txt para concat
+const concatContent = images
+  .map((img) => `file '${path.join(IMAGES_DIR, img)}'`)
+  .join("\n");
 
-let listContent = "";
+fs.writeFileSync(imagesListPath, concatContent);
 
-images.forEach((image) => {
-  listContent += `file '${path.join(IMAGES_DIR, image)}'\n`;
-  listContent += `duration ${durationPerImage}\n`;
-});
+const isShort = type === "short";
 
-listContent += `file '${path.join(IMAGES_DIR, images[images.length - 1])}'\n`;
+// 🔥 DIFERENCIAÇÃO CORRETA
+const scale = isShort ? "720:1280" : "1280:720";
 
-fs.writeFileSync(listFile, listContent);
-
-console.log("🎬 Gerando vídeo LEVE para Render...");
+console.log("🎬 Gerando vídeo respeitando duração do áudio...");
 
 try {
-  execSync(
-    `ffmpeg -y -f concat -safe 0 -i "${listFile}" -i "${AUDIO_PATH}" \
-    -vf "scale=720:720" \
-    -c:v libx264 -preset ultrafast -crf 32 -pix_fmt yuv420p \
-    -c:a aac -b:a 96k -shortest "${VIDEO_PATH}"`,
-    { stdio: "inherit" }
-  );
+  const ffmpegCommand = `
+  ffmpeg -y \
+  -f concat -safe 0 -i "${imagesListPath}" \
+  -i "${AUDIO_PATH}" \
+  -vf "scale=${scale},format=yuv420p" \
+  -c:v libx264 \
+  -preset veryfast \
+  -crf 28 \
+  -pix_fmt yuv420p \
+  -c:a aac \
+  -b:a 128k \
+  -shortest \
+  -movflags +faststart \
+  "${VIDEO_PATH}"
+  `;
+
+  execSync(ffmpegCommand, { stdio: "inherit" });
 
   console.log("✅ Vídeo gerado com sucesso:", VIDEO_PATH);
-} catch (err) {
-  console.error("❌ Erro ao gerar vídeo:", err.message);
+
+} catch (error) {
+  console.error("❌ Erro ao gerar vídeo:", error.message);
   process.exit(1);
 }
