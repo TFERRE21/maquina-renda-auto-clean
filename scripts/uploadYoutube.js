@@ -1,71 +1,84 @@
+import { google } from "googleapis";
 import fs from "fs";
 import path from "path";
-import { google } from "googleapis";
 
-const VIDEO_PATH = path.resolve("output/video_final.mp4");
-const THUMB_PATH = path.resolve("output/thumb.jpg");
-
-const oauth2Client = new google.auth.OAuth2(
-  process.env.YT_CLIENT_ID,
-  process.env.YT_CLIENT_SECRET,
-  process.env.YT_REDIRECT_URI
-);
-
-oauth2Client.setCredentials({
-  refresh_token: process.env.YT_REFRESH_TOKEN,
-});
-
-const youtube = google.youtube({
-  version: "v3",
-  auth: oauth2Client,
-});
+const OUTPUT_DIR = path.resolve("output");
+const videoPath = path.join(OUTPUT_DIR, "video_final.mp4");
+const thumbPath = path.join(OUTPUT_DIR, "thumbnail.png");
 
 async function upload() {
-  const title = gerarTitulo();
-  const description = gerarDescricao();
+  try {
+    if (!fs.existsSync(videoPath)) {
+      console.log("❌ Vídeo não encontrado.");
+      process.exit(1);
+    }
 
-  const response = await youtube.videos.insert({
-    part: "snippet,status",
-    requestBody: {
-      snippet: {
-        title,
-        description,
-        tags: ["investimentos", "curiosidades", "shorts"],
-        categoryId: "27",
-      },
-      status: {
-        privacyStatus: "public",
-      },
-    },
-    media: {
-      body: fs.createReadStream(VIDEO_PATH),
-    },
-  });
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.YOUTUBE_CLIENT_ID,
+      process.env.YOUTUBE_CLIENT_SECRET,
+      "http://localhost"
+    );
 
-  const videoId = response.data.id;
+    oauth2Client.setCredentials({
+      refresh_token: process.env.YOUTUBE_REFRESH_TOKEN,
+    });
 
-  await youtube.thumbnails.set({
-    videoId,
-    media: {
-      body: fs.createReadStream(THUMB_PATH),
-    },
-  });
+    const youtube = google.youtube({
+      version: "v3",
+      auth: oauth2Client,
+    });
 
-  console.log("✅ Vídeo enviado com sucesso!");
-}
+    const title = `🔥 ${new Date().toLocaleDateString()} Descubra Algo Surpreendente!`;
 
-function gerarTitulo() {
-  return `💰 ${new Date().toLocaleDateString()} | Você sabia disso sobre investimentos?`;
-}
+    const description = `
+🚀 Vídeo automático gerado pelo sistema
 
-function gerarDescricao() {
-  return `
-Descubra algo incrível sobre investimentos!
+📌 Inscreva-se para mais conteúdos!
+📈 Conteúdo diário automatizado
 
-📌 Inscreva-se para mais vídeos automáticos todos os dias.
-
-#investimentos #dinheiro #curiosidades
+#Shorts #Investimentos #Curiosidades
 `;
+
+    console.log("📤 Enviando vídeo para YouTube...");
+
+    const response = await youtube.videos.insert({
+      part: ["snippet", "status"],
+      requestBody: {
+        snippet: {
+          title,
+          description,
+          tags: ["curiosidades", "investimentos", "automático"],
+          categoryId: "27"
+        },
+        status: {
+          privacyStatus: "public"
+        }
+      },
+      media: {
+        body: fs.createReadStream(videoPath)
+      }
+    });
+
+    const videoId = response.data.id;
+
+    console.log("✅ Vídeo enviado com sucesso!");
+    console.log("🔗 https://youtube.com/watch?v=" + videoId);
+
+    if (fs.existsSync(thumbPath)) {
+      console.log("🖼 Enviando thumbnail...");
+      await youtube.thumbnails.set({
+        videoId,
+        media: {
+          body: fs.createReadStream(thumbPath)
+        }
+      });
+      console.log("✅ Thumbnail enviada!");
+    }
+
+  } catch (error) {
+    console.error("❌ ERRO NO UPLOAD:", error.message);
+    process.exit(1);
+  }
 }
 
 upload();
