@@ -2,6 +2,11 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import OpenAI from "openai";
+import { google } from "googleapis";
+
+//////////////////////////////////////////////////
+// CONFIG
+//////////////////////////////////////////////////
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -12,32 +17,33 @@ const IMG_DIR = path.join(OUTPUT, "images");
 if (!fs.existsSync(OUTPUT)) fs.mkdirSync(OUTPUT);
 if (!fs.existsSync(IMG_DIR)) fs.mkdirSync(IMG_DIR);
 
-console.log("🚀 Iniciando automação profissional...");
+console.log("🚀 Iniciando máquina automática YouTube...");
 
 //////////////////////////////////////////////////
-// 1️⃣ GERAR ROTEIRO
+// 1️⃣ GERAR ROTEIRO IA
 //////////////////////////////////////////////////
 
-const roteiro = `
-Você sabia que existem fatos surpreendentes sobre o mundo que poucas pessoas conhecem?
-
-Hoje você vai descobrir curiosidades incríveis que podem mudar sua forma de enxergar o planeta.
-
-Existem lugares na Terra onde nunca choveu.
-Animais que conseguem sobreviver no espaço.
-E fenômenos naturais que desafiam a ciência moderna.
-
-Fique até o final porque o último fato vai realmente te surpreender.
+const roteiroPrompt = `
+Crie um roteiro envolvente de 2 minutos para YouTube
+sobre curiosidades surpreendentes do mundo.
+Termine incentivando inscrição.
 `;
 
+const roteiroResponse = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{ role: "user", content: roteiroPrompt }],
+});
+
+const roteiro = roteiroResponse.choices[0].message.content;
+
 fs.writeFileSync(path.join(OUTPUT, "roteiro.txt"), roteiro);
-console.log("✅ Roteiro salvo!");
+console.log("✅ Roteiro criado!");
 
 //////////////////////////////////////////////////
-// 2️⃣ GERAR VOZ REAL (OpenAI TTS)
+// 2️⃣ GERAR VOZ
 //////////////////////////////////////////////////
 
-console.log("🎙 Gerando voz OpenAI...");
+console.log("🎙 Gerando voz...");
 
 const speech = await openai.audio.speech.create({
   model: "gpt-4o-mini-tts",
@@ -48,10 +54,10 @@ const speech = await openai.audio.speech.create({
 const buffer = Buffer.from(await speech.arrayBuffer());
 fs.writeFileSync(path.join(OUTPUT, "voz.mp3"), buffer);
 
-console.log("✅ Voz gerada!");
+console.log("✅ Voz criada!");
 
 //////////////////////////////////////////////////
-// 3️⃣ GERAR MÚSICA DE FUNDO
+// 3️⃣ MÚSICA DE FUNDO
 //////////////////////////////////////////////////
 
 execSync(
@@ -73,10 +79,19 @@ for (let i = 1; i <= 6; i++) {
 console.log("✅ Imagens criadas!");
 
 //////////////////////////////////////////////////
-// 5️⃣ CRIAR VÍDEO COM ZOOM + LEGENDA
+// 5️⃣ GERAR THUMBNAIL AUTOMÁTICA
 //////////////////////////////////////////////////
 
-console.log("🎬 Criando vídeo cinematográfico...");
+execSync(
+  `ffmpeg -y -f lavfi -i color=c=blue:s=1280x720 -frames:v 1 "${OUTPUT}/thumb.jpg"`,
+  { stdio: "ignore" }
+);
+
+//////////////////////////////////////////////////
+// 6️⃣ CRIAR VÍDEO PROFISSIONAL
+//////////////////////////////////////////////////
+
+console.log("🎬 Criando vídeo final...");
 
 execSync(`
 ffmpeg -y \
@@ -99,10 +114,73 @@ ffmpeg -y \
 [6:a][7:a]amix=inputs=2:duration=shortest[a]
 " \
 -map "[v]" -map "[a]" \
--c:v libx264 -preset ultrafast -crf 28 \
+-c:v libx264 -preset medium -crf 23 -pix_fmt yuv420p \
 -c:a aac -b:a 128k \
 -shortest \
 "${OUTPUT}/video_final.mp4"
 `, { stdio: "inherit" });
 
-console.log("🎉 VÍDEO PROFISSIONAL GERADO!");
+console.log("🎉 Vídeo pronto!");
+
+//////////////////////////////////////////////////
+// 7️⃣ GERAR TÍTULO + DESCRIÇÃO SEO
+//////////////////////////////////////////////////
+
+const seoResponse = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [{
+    role: "user",
+    content: `Crie um título chamativo e descrição otimizada SEO para YouTube baseado nisso:\n${roteiro}`
+  }]
+});
+
+const seo = seoResponse.choices[0].message.content.split("\n");
+const title = seo[0].replace("Título:", "").trim();
+const description = seo.slice(1).join("\n");
+
+//////////////////////////////////////////////////
+// 8️⃣ UPLOAD AUTOMÁTICO YOUTUBE
+//////////////////////////////////////////////////
+
+console.log("📺 Enviando para YouTube...");
+
+const oauth2Client = new google.auth.OAuth2(
+  process.env.YOUTUBE_CLIENT_ID,
+  process.env.YOUTUBE_CLIENT_SECRET
+);
+
+oauth2Client.setCredentials({
+  refresh_token: process.env.YOUTUBE_REFRESH_TOKEN,
+});
+
+const youtube = google.youtube({
+  version: "v3",
+  auth: oauth2Client,
+});
+
+const response = await youtube.videos.insert({
+  part: "snippet,status",
+  requestBody: {
+    snippet: {
+      title,
+      description,
+      tags: ["curiosidades", "fatos", "mundo"],
+      categoryId: "22"
+    },
+    status: {
+      privacyStatus: "public"
+    }
+  },
+  media: {
+    body: fs.createReadStream(path.join(OUTPUT, "video_final.mp4"))
+  }
+});
+
+await youtube.thumbnails.set({
+  videoId: response.data.id,
+  media: {
+    body: fs.createReadStream(path.join(OUTPUT, "thumb.jpg"))
+  }
+});
+
+console.log("🚀 VÍDEO ENVIADO COM SUCESSO!");
